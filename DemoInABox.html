@@ -1003,7 +1003,7 @@ async function testWebhook(){
   try {
     await fetch(url, {
       method: "POST", mode: "no-cors",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "text/plain" },
       body: JSON.stringify(testData)
     });
     showOverlay(false);
@@ -1251,7 +1251,7 @@ async function sharedSubmit(){
     try {
       await fetch(webhookUrl, {
         method: "POST", mode: "no-cors",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "text/plain" },
         body: JSON.stringify(completionData)
       });
     } catch(err){ console.error("Webhook failed:", err); }
