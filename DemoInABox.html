@@ -390,7 +390,7 @@
     <input id="hostedUrl" placeholder="https://yourname.github.io/rakbank-learning/DemoInABox.html">
     <div style="margin:20px 0 16px;border-top:1px solid var(--border);padding-top:16px;"></div>
     <div class="info-box">
-      <b>&#9889; Power Automate Webhook URL</b><br>Auto-sends completion data to your flow.
+      <b>&#9889; Microsoft Form URL (Anonymous)</b><br>Auto-sends completion data to your flow.
     </div>
     <label>Webhook URL</label>
     <input id="webhookUrl" placeholder="https://prod-XX.westeurope.logic.azure.com:443/workflows/...">
@@ -989,29 +989,50 @@ function updateWebhookStatus(){
 }
 
 async function testWebhook(){
-  const url = document.getElementById("webhookUrl").value.trim();
-  if(!url){ toast("Enter webhook URL first", false); return; }
+  const formUrl = document.getElementById("webhookUrl").value.trim();
+  if(!formUrl){ toast("Enter Microsoft Form URL first", false); return; }
   showOverlay(true);
-  document.getElementById("spinnerMsg").innerText = "Sending test...";
-  const testData = {
-    test: true, timestamp: new Date().toISOString(),
-    learnerName: "Test User", learnerEmail: "test@rakbank.ae",
-    empId: "TEST123", department: "Test", courseTitle: "Test Course",
-    courseId: "TEST", score: 100, attempts: 1, passed: true,
-    completionDate: new Date().toISOString(), token: "test-token"
-  };
+  document.getElementById("spinnerMsg").innerText = "Opening test submission...";
   try {
-    await fetch(url, {
-      method: "POST", mode: "no-cors",
-      headers: { "Content-Type": "text/plain" },
-      body: JSON.stringify(testData)
+    const testUrl = buildFormUrl(formUrl, {
+      name: "Test User",
+      empId: "TEST123",
+      email: "test@rakbank.ae",
+      department: "Test Dept",
+      courseTitle: "Test Course",
+      score: 100,
+      attempts: 1,
+      date: new Date().toLocaleDateString("en-GB")
     });
+    window.open(testUrl, "rakbank_test", "width=600,height=800");
     showOverlay(false);
-    toast("\u2705 Test sent! Check your email/Excel/Teams.", true);
+    toast("\u2705 Test form opened! Submit it to verify Power Automate fires.", true);
   } catch(err){
     showOverlay(false);
     toast("\u274C Failed: " + err.message, false);
   }
+}
+
+function buildFormUrl(baseUrl, data){
+  const FIELDS = {
+    name:       "r6b6b4e23ae844a73a10852615f931808",
+    empId:      "rdefde7e65eb44d8d8fc32c889dc8efac",
+    email:      "r44961f1b538e41baa5877e75e3f715cf",
+    department: "r341e459a369d4f679cbbd0af73b8733a",
+    courseTitle:"r44c46982d702403db6d09d2d51817c9d",
+    score:      "r703706c35ff64245a17fad0d04c34b15",
+    attempts:   "r6e0ad4e9d2dc482898373cb32423da8d",
+    date:       "rebba716fbd164e21a8a06afe4522b175"
+  };
+  const base = baseUrl.split("?")[0];
+  const params = new URLSearchParams();
+  params.append("id", "lQu3-ygo40yQ1cbh_yQ2GPnZW78fM3dGkuA4WWKqKQlUOFRSRkU5R0FPTERHRzRLTUhNUkczN1g1SC4u");
+  Object.keys(FIELDS).forEach(k => {
+    if(data[k] !== undefined && data[k] !== null && data[k] !== "") {
+      params.append(FIELDS[k], String(data[k]));
+    }
+  });
+  return base + "?" + params.toString();
 }
 
 /* ============== NEW: IMPORT EXCEL/CSV FROM ONEDRIVE ============== */
@@ -1249,12 +1270,24 @@ async function sharedSubmit(){
 
   if(webhookUrl && !assignment.isPreview){
     try {
-      await fetch(webhookUrl, {
-        method: "POST", mode: "no-cors",
-        headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify(completionData)
+      const formUrl = buildFormUrl(webhookUrl, {
+        name: assignment.name,
+        empId: assignment.empId,
+        email: assignment.email,
+        department: assignment.department,
+        courseTitle: assignment.courseTitle || course.title,
+        score: pct,
+        attempts: sharedState.attempts,
+        date: new Date().toLocaleDateString("en-GB")
       });
-    } catch(err){ console.error("Webhook failed:", err); }
+      // Open in hidden iframe so learner never sees the form
+      const iframe = document.createElement("iframe");
+      iframe.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:0;";
+      iframe.src = formUrl;
+      document.body.appendChild(iframe);
+      // Keep iframe alive for 90 seconds so learner can submit
+      setTimeout(() => { try { document.body.removeChild(iframe); } catch(e){} }, 90000);
+    } catch(err){ console.error("Tracker failed:", err); }
   }
 
   const d = STORE.load();
